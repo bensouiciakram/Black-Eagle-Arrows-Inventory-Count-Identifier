@@ -1,0 +1,71 @@
+The following items (that were in stock yesterday) are out of stock today:
+
+{% for product_item in data.out_of_stocks_products %}
+    {{ product_item.product_name }} 
+    {% if product_item.DroplistValue1 %}
+    {{ product_item.DroplistDesc1 }} : {{ product_item.DroplistValue1 }}
+    {% endif %}
+    {% if product_item.DroplistValue2 %}
+    {{ product_item.DroplistDesc2 }} : {{ product_item.DroplistValue2 }}
+    {% endif %}
+    {% if product_item.DroplistValue3 %}
+    {{ product_item.DroplistDesc3 }} : {{ product_item.DroplistValue3 }}
+    {% endif %}
+    {% if product_item.DroplistValue4 %}
+    {{ product_item.DroplistDesc4 }} : {{ product_item.DroplistValue4 }}
+    {% endif %}
+{% endfor %}
+
+The following items (that were out of stock yesterday) are in stock today:
+
+{% for product_item in data.in_stocks_products %}
+    {{ product_item.product_name }} 
+    {% if product_item.DroplistValue1 %}
+    {{ product_item.DroplistDesc1 }} : {{ product_item.DroplistValue1 }}
+    {% endif %}
+    {% if product_item.DroplistValue2 %}
+    {{ product_item.DroplistDesc2 }} : {{ product_item.DroplistValue2 }}
+    {% endif %}
+    {% if product_item.DroplistValue3 %}
+    {{ product_item.DroplistDesc3 }} : {{ product_item.DroplistValue3 }}
+    {% endif %}
+    {% if product_item.DroplistValue4 %}
+    {{ product_item.DroplistDesc4 }} : {{ product_item.DroplistValue4 }}
+    {% endif %}
+{% endfor %}
+
+There's enough stock (at least 5 pcs) for the following items:
+
+{% for product_item in data.more_5_stocks_products %}
+    {{ product_item.product_name }} 
+    {% if product_item.DroplistValue1 %}
+    {{ product_item.DroplistDesc1 }} : {{ product_item.DroplistValue1 }}
+    {% endif %}
+    {% if product_item.DroplistValue2 %}
+    {{ product_item.DroplistDesc2 }} : {{ product_item.DroplistValue2 }}
+    {% endif %}
+    {% if product_item.DroplistValue3 %}
+    {{ product_item.DroplistDesc3 }} : {{ product_item.DroplistValue3 }}
+    {% endif %}
+    {% if product_item.DroplistValue4 %}
+    {{ product_item.DroplistDesc4 }} : {{ product_item.DroplistValue4 }}
+    {% endif %}
+{% endfor %}
+
+There's low stock (only 1 in stock) for the following items:
+
+{% for product_item in data.only_1_stocks_products %}
+    {{ product_item.product_name }} 
+    {% if product_item.DroplistValue1 %}
+    {{ product_item.DroplistDesc1 }} : {{ product_item.DroplistValue1 }}
+    {% endif %}
+    {% if product_item.DroplistValue2 %}
+    {{ product_item.DroplistDesc2 }} : {{ product_item.DroplistValue2 }}
+    {% endif %}
+    {% if product_item.DroplistValue3 %}
+    {{ product_item.DroplistDesc3 }} : {{ product_item.DroplistValue3 }}
+    {% endif %}
+    {% if product_item.DroplistValue4 %}
+    {{ product_item.DroplistDesc4 }} : {{ product_item.DroplistValue4 }}
+    {% endif %}
+{% endfor %}

@@ -1,0 +1,92 @@
+# Black Eagle Arrows Inventory Count Identifier - Git Ignore
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual Environments
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Project Specific
+# Data files (contain scraped data)
+data.pkl
+products_urls.pkl
+failed_urls.pkl
+
+# Generated outputs
+outputs/
+descriptions/
+logs/
+reports/
+
+# Temporary files
+*.tmp
+*.temp
+*.log
+
+# Configuration files with sensitive data
+config.json
+credentials.json
+*.key
+*.pem
+
+# Backup files
+*.bak
+*.backup
+
+# Jupyter Notebooks
+.ipynb_checkpoints
+
+# Coverage reports
+htmlcov/
+.coverage
+.coverage.*
+coverage.xml
+*.cover
+.hypothesis/
+.pytest_cache/
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json 

@@ -1,0 +1,18 @@
+<b>SKU:</b> {{ product_item.SKU }} <br>
+{{ product_item.Brand }} <br>
+<h1><b> {{ product_item.product_name }} </b></h1> <br>
+{{ product_item.Price }} <br>
+{% if product_item.DroplistValue1 %}
+{{ product_item.DroplistDesc1 }} : {{ product_item.DroplistValue1 }} <br>
+{% endif %}
+{% if product_item.DroplistValue2 %}
+{{ product_item.DroplistDesc2 }} : {{ product_item.DroplistValue2 }} <br>
+{% endif %}
+{% if product_item.DroplistValue3 %}
+{{ product_item.DroplistDesc3 }} : {{ product_item.DroplistValue3 }} <br>
+{% endif %}
+{% if product_item.DroplistValue4 %}
+{{ product_item.DroplistDesc4 }} : {{ product_item.DroplistValue4 }} <br>
+{% endif %}
+<br>
+{{ product_item.Description }}
