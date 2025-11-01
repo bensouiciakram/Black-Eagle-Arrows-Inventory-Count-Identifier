@@ -67,10 +67,9 @@ def save_description(selector: Selector, product_item: Dict[str, Any]) -> str:
         description_folder.mkdir(exist_ok=True)
         
         description_path = description_folder.joinpath(clean_file_name(product_item['product_name']))
-        description_content = selector.xpath('//section[@id="description"]').get()
-        
+        description_content = product_item.get('Description', '')
         with open(description_path, 'w', encoding='utf-8') as file:
-            file.write(description_content if description_content else '')
+            file.write(description_content)
         
         return str(description_path.absolute())
         

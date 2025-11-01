@@ -16,12 +16,11 @@ Author: Project Developer
 License: MIT
 """
 
-from playwright.async_api import async_playwright, TimeoutError 
+from playwright.async_api import async_playwright, TimeoutError,Error
 from playwright.async_api._generated import Browser
 from playwright.async_api._generated import BrowserContext
 from playwright.async_api._generated import Page
 from playwright.async_api._generated import ElementHandle
-from playwright._impl._api_types import Error
 from parsel import Selector 
 from typing import List, Dict, Any, Set, Optional, Tuple
 from copy import deepcopy 
@@ -50,6 +49,10 @@ listing_urls = [
     'https://blackeaglearrows.com/components/',
     'https://blackeaglearrows.com/gear/'
 ]
+
+async def handle_help_us_stay_connected_popup(page:Page) :
+    if await page.query_selector('//button[contains(@class,"needsclick")]'):
+        await page.click('//button[contains(@class,"needsclick")]')
 
 async def check_handled_url(page: Page, data: List[Dict[str, Any]]) -> bool:
     """
@@ -94,9 +97,22 @@ async def get_page_products_urls(page: Page) -> List[str]:
         List[str]: List of product URLs found on the page
     """
     selector = Selector(text=await page.content())
-    return selector.xpath('//div[contains(@class,"product-item-image")]//a/@href').getall()
+    return selector.xpath('//a[@class="card-figure__link"]/@href').getall()
 
-async def get_product_item(page: Page, data: List[Dict[str, Any]]) -> Dict[str, Any]:
+async def get_description_outer_html(page:Page) -> str:
+    """
+    Extract the outer HTML of the product description section.
+    
+    Args:
+        page: Playwright page object
+        
+    Returns:
+        str: Outer HTML of the description section
+    """
+    desc_handle = await page.query_selector('//*[@id="tab-description"]')
+    return await desc_handle.evaluate('(element) => element.outerHTML') if desc_handle else ''
+
+async def get_product_item(page: Page) -> Dict[str, Any]:
     """
     Extract initial product information from a product page.
     
@@ -110,8 +126,8 @@ async def get_product_item(page: Page, data: List[Dict[str, Any]]) -> Dict[str, 
     selector = Selector(text=await page.content())
     
     product_item = {
-        'SKU': selector.xpath('string(//span[contains(text(),"SKU")]/following-sibling::span[1])').get().strip(),
-        'Brand': selector.xpath('string(//a[@class="product-brand"])').get().strip(),
+        'SKU': selector.xpath('string(//dt[@class="productView-info-name sku-label"]/following-sibling::dd[1])').get().strip(),
+        'Brand': selector.xpath('string(//h2[@class="productView-brand"])').get().strip(),
         'product_name': selector.xpath('//h1/text()').get(),
         'URL': page.url,
         '1DroplistDesc': '',
@@ -122,20 +138,19 @@ async def get_product_item(page: Page, data: List[Dict[str, Any]]) -> Dict[str, 
         '3DroplistValue': '',
         '4DroplistDesc': '',
         '4DroplistValue': '',
-        'Price': '',
+        'Price': selector.xpath('string((//span[@class="price price--withoutTax"])[1])').get().strip(),
         'Current stock': 0,
         'Current stock date': format_date(),
         'Previous stock': 0,
         'Previous stock date': '',
         'Description_path': '',
         'Description': '',
-        'Item photo URL': selector.xpath('//img[contains(@class,"product-main-image-slide")]/@src').get()
+        'Item photo URL': selector.xpath('//figure[@class="productView-image"]/@data-zoom-image').get()
     }
     
     # Save description and update paths
+    product_item['Description'] = await get_description_outer_html(page)
     product_item['Description_path'] = save_description(selector, product_item)
-    product_item['Description'] = selector.xpath('//section[@id="description"]').get()
-    
     return product_item
 
 async def handle_url(browser: Browser, url: str, logger: logging.RootLogger, 
@@ -151,16 +166,17 @@ async def handle_url(browser: Browser, url: str, logger: logging.RootLogger,
         failed_urls: Set of failed URLs
     """
     context = await browser.new_context()
+    context.set_default_timeout(5000)
     page = await context.new_page()
     
     try:
-        await page.goto(url, timeout=60000)
+        await page.goto(url)
         
         if await check_handled_url(page, data):
             logger.info(f"URL already handled: {url}")
             return
-            
-        primary_item = await get_product_item(page, data)
+        await handle_help_us_stay_connected_popup(page)
+        primary_item = await get_product_item(page)
         
         # Check if product is unavailable
         unavailable_button = await page.query_selector('//div[@class="product-add-to-cart form-field"]/input[@value="Unavailable"]')
@@ -173,6 +189,10 @@ async def handle_url(browser: Browser, url: str, logger: logging.RootLogger,
                 await inventory_identifier(page, primary_item, logger, data)
             except TimeoutError:
                 logger.error(f'Timeout problem in link: {url}')
+                failed_urls.add(url)
+                pickle.dump(failed_urls, open('failed_urls.pkl', 'wb'))
+            except NotImplementedError:
+                logger.error(f'NotImplementedError for link: {url}')
                 failed_urls.add(url)
                 pickle.dump(failed_urls, open('failed_urls.pkl', 'wb'))
                 
@@ -209,10 +229,11 @@ async def handle_listing(browser: Browser, listing_url: str, logger: logging.Roo
         data: List of existing product data
     """
     context = await browser.new_context()
+    context.set_default_timeout(5000)
     page = await context.new_page()
     
     try:
-        await page.goto(listing_url, timeout=60000)
+        await page.goto(listing_url)
         total_pages = await get_total_pages(page)
         
         logger.info(f'{total_pages} pages found for the listing URL {page.url}')
@@ -223,7 +244,7 @@ async def handle_listing(browser: Browser, listing_url: str, logger: logging.Roo
             page = await listing_page_context.new_page()
             
             try:
-                await page.goto(listing_url + f'?page={page_id}', timeout=60000)
+                await page.goto(listing_url + f'?page={page_id}')
                 products_urls = load_products_urls()
                 new_urls = await get_page_products_urls(page)
                 products_urls = products_urls.union(new_urls)
@@ -272,7 +293,7 @@ async def get_options_dict(page: Page) -> Dict[ElementHandle, List[str]]:
     Returns:
         Dict[ElementHandle, List[str]]: Dictionary mapping attribute handles to their values
     """
-    attrs = await page.query_selector_all('select')
+    attrs = await page.query_selector_all('//select[contains(@name,"attribute")]')
     attrs_values_dict = {}
     
     for attr in attrs:
@@ -308,7 +329,8 @@ async def try_inventory_quantity(page: Page, check_value: int, logger: logging.R
         count = 0
         while True:
             try:
-                await page.click('//input[@class="button button-primary"]')
+
+                await page.click('//input[@id="form-action-addToCart"]')
                 break
             except TimeoutError:
                 count += 1
@@ -325,15 +347,28 @@ async def try_inventory_quantity(page: Page, check_value: int, logger: logging.R
             
             try:
                 if response_obj['data'].get('error'):
+                    await page.click('//button[@class="confirm button"]')
                     return False
                 else:
+                    await page.click('//div[@id="previewModal"]//button[@class="modal-close"]')
                     return True
             except KeyError:
                 return True
                 
     except Exception as e:
         logger.error(f"Error testing inventory quantity {check_value}: {e}")
+        raise TimeoutError # todo later delete this 
         return False
+    
+async def check_out_of_stock(page: Page) -> bool:
+    availability_handle = await page.query_selector(
+        '//dt[contains(text(),"Availability:")]'
+        '/following-sibling::dd[@class="productView-info-value"]'
+    )
+    if availability_handle is None :
+        return False 
+    return 'out of Stock' in await availability_handle.inner_text()
+    
 
 async def get_inventory_value(page: Page, check_value: int, logger: logging.RootLogger) -> int:
     """
@@ -347,8 +382,12 @@ async def get_inventory_value(page: Page, check_value: int, logger: logging.Root
     Returns:
         int: Actual inventory quantity
     """
+
     inventory = 0
     try_count = 0
+    
+    if await check_out_of_stock(page):
+        return inventory 
     
     while True:
         try_count += 1
@@ -356,7 +395,7 @@ async def get_inventory_value(page: Page, check_value: int, logger: logging.Root
         if try_count > 10:
             check_value += 50000
             try_count = -100000
-            
+
         availability = await try_inventory_quantity(page, check_value, logger)
         
         if availability:
@@ -382,6 +421,20 @@ async def get_attr_value(page: Page, attr_value: str) -> str:
     """
     return attr_value
 
+async def get_select_desc(handle:ElementHandle) -> str:
+    """
+    Get the description of a select attribute.
+    
+    Args:
+        handle: Playwright element handle for select attribute
+        
+    Returns:
+        str: label of the select attribute
+    """
+    desc_handle = await handle.query_selector('xpath=.//preceding-sibling::label')
+    desc = await desc_handle.inner_text()
+    return desc.split(':')[0] if desc else ''
+
 async def inventory_identifier(page: Page, primary_item: Dict[str, Any], 
                              logger: logging.RootLogger, data: List[Dict[str, Any]], 
                              guessed_initial_value: int = 100) -> int:
@@ -399,23 +452,28 @@ async def inventory_identifier(page: Page, primary_item: Dict[str, Any],
         int: Number of product variations processed
     """
     attrs_dict = await get_options_dict(page)
+    if not attrs_dict:
+        raise NotImplementedError("handling pages with no select inside will be added later")
     all_combinations = get_all_combinations(*(attrs_dict.values()))
-    
     for combination in all_combinations:
         # Select attributes
         attr_handles = list(attrs_dict.keys())
-        for i, (attr_handle, value) in enumerate(zip(attr_handles, combination)):
-            await select_attr_option(attr_handle, value)
-            await page.wait_for_timeout(500)
-        
+        if len(attr_handles) > 1:
+            for i, (attr_handle, value) in enumerate(zip(attr_handles, combination)):
+                await select_attr_option(attr_handle, value)
+                await page.wait_for_timeout(500)
+        elif len(attr_handles) == 1:
+            for attr_handle,values in attrs_dict.items():
+                for value in combination:
+                    await select_attr_option(attr_handle, value)
+                    await page.wait_for_timeout(500)
         # Create product variation item
         variation_item = deepcopy(primary_item)
-        attr_names = list(attrs_dict.keys())
-        
+        variation_item.update(await get_product_item(page))
+        attr_names = [await get_select_desc(handle) for handle in attrs_dict.keys()]
         for i, (attr_name, attr_value) in enumerate(zip(attr_names, combination)):
             variation_item[f'{i+1}DroplistDesc'] = str(attr_name)
             variation_item[f'{i+1}DroplistValue'] = attr_value
-        
         # Test inventory quantity
         inventory_quantity = await get_inventory_value(page, guessed_initial_value, logger)
         variation_item['Current stock'] = inventory_quantity
@@ -461,15 +519,15 @@ async def run(p, data: List[Dict[str, Any]], headless: bool, pages_number: int,
     
     try:
         # First, collect all product URLs from listing pages
-        listing_tasks = [handle_listing(browser, url, logger, data) for url in listing_urls]
+        listing_tasks = [handle_listing(browser, url, logger, data) for url in list(listing_urls)]
         await gather_with_concurrency(2, *listing_tasks)
         
         # Load collected URLs
         products_urls = load_products_urls()
         logger.info(f"Collected {len(products_urls)} product URLs")
-        
+
         # Then process each product URL
-        product_tasks = [handle_url(browser, url, logger, data, failed_urls) for url in products_urls]
+        product_tasks = [handle_url(browser, url, logger, data, failed_urls) for url in list(products_urls)]
         await gather_with_concurrency(pages_number, *product_tasks)
         
     finally:
@@ -483,7 +541,6 @@ async def main(*args) -> None:
         *args: Variable arguments (data, headless, pages_number, logger, failed_urls)
     """
     data, headless, pages_number, logger, failed_urls = args
-    
     try:
         async with async_playwright() as p:
             await run(p, data, headless, pages_number, logger, failed_urls)

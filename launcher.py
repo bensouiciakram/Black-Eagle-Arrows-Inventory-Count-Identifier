@@ -111,20 +111,17 @@ def main_launcher() -> None:
         
         # Initialize global variables
         initialize_global_variables()
-        
         logger.info(f"Starting scraper with {pages_number} concurrent tabs, headless: {headless}")
-        
         # Run the main scraping process
         asyncio.run(
             main(
-                data=data,
-                headless=headless,
-                pages_number=pages_number,
-                logger=logger,
-                failed_urls=failed_urls
+                data,
+                headless,
+                pages_number,
+                logger,
+                failed_urls
             )
         )
-        
         logger.info("Scraping process completed successfully")
         
     except KeyboardInterrupt:

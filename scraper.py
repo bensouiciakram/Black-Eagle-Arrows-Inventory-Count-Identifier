@@ -229,7 +229,7 @@ async def get_product_item(page: Page) -> Dict[str, Any]:
         '3DroplistValue': '',
         '4DroplistDesc': '',
         '4DroplistValue': '',
-        'Price': '',
+        'Price': selector.xpath('string((//span[@class="price price--withoutTax"])[1])').get().strip(),
         'Current stock': 0,
         'Current stock date': format_date(),
         'Previous stock': 0,
@@ -270,10 +270,11 @@ async def handle_url(browser: Browser, url: str) -> None:
     global failed_urls, data
     
     context = await browser.new_context()
+    context.set_default_timeout(5000)
     page = await context.new_page()
     
     try:
-        await page.goto(url, timeout=60000)
+        await page.goto(url)
         
         if await check_handled_url(page):
             logger.info(f"URL already handled: {url}")
@@ -315,10 +316,11 @@ async def handle_listing(browser: Browser, listing_url: str) -> None:
     global data, products_urls
     
     context = await browser.new_context()
+    context.set_default_timeout(5000)
     page = await context.new_page()
     
     try:
-        await page.goto(listing_url, timeout=60000)
+        await page.goto(listing_url)
         total_pages = await get_total_pages(page)
         
         logger.info(f"Processing listing: {listing_url} with {total_pages} pages")
@@ -732,7 +734,7 @@ async def run(p) -> None:
     await gather_with_concurrency(2, *listing_tasks)
     
     logger.info(f"Collected {len(products_urls)} product URLs")
-    
+
     # Then process each product URL
     product_tasks = [handle_url(browser, url) for url in products_urls]
     await gather_with_concurrency(PAGES_NUMBER, *product_tasks)
